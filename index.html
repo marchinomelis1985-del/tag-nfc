@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04070a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>SOFTAIR HQ // PROJECT PHOENIX</title>
+<style>
+  :root{
+    --bg:#04070a; --panel:#0a1310; --panel-border: rgba(57,255,20,0.28);
+    --neon:#39ff14; --neon-glow: rgba(57,255,20,0.55); --neon-dim:#1c6e10;
+    --text-dim:#5f8a57; --amber:#ffb400; --amber-glow: rgba(255,180,0,0.5);
+    --danger:#ff2d55; --danger-glow: rgba(255,45,85,0.65);
+    --mono: 'Consolas','Menlo','Courier New',monospace;
+    --maxw: 480px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{height:100%;margin:0;padding:0;background:var(--bg);}
+  body{ font-family:var(--mono); color:var(--neon); overflow-x:hidden; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, rgba(57,255,20,0.10), transparent 55%), var(--bg); }
+
+  .scanlines{ position:fixed; inset:0; pointer-events:none; z-index:40; mix-blend-mode:overlay;
+    background:repeating-linear-gradient(to bottom, rgba(57,255,20,0.05) 0px, rgba(57,255,20,0.05) 1px, transparent 1px, transparent 3px);
+    animation:scanmove 6s linear infinite; }
+  @keyframes scanmove{ 0%{background-position-y:0} 100%{background-position-y:300px} }
+  body.glitch{ animation:bodyGlitch 0.25s steps(2) infinite; }
+  @keyframes bodyGlitch{ 0%{filter:none;} 50%{filter:hue-rotate(8deg) saturate(1.3);} 100%{filter:none;} }
+
+  header{ position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:12px;
+    padding:14px 16px 10px; background:linear-gradient(to bottom, rgba(4,7,10,0.97), rgba(4,7,10,0.85));
+    border-bottom:1px solid var(--panel-border); }
+  .radar{ width:26px; height:26px; border-radius:50%; border:1px solid var(--neon-dim); position:relative; flex-shrink:0; overflow:hidden; box-shadow: inset 0 0 6px rgba(57,255,20,0.3); }
+  .radar::after{ content:''; position:absolute; inset:0; background:conic-gradient(from 0deg, rgba(57,255,20,0.9), transparent 35%); animation:sweep 2.6s linear infinite; }
+  @keyframes sweep{ to{ transform:rotate(360deg); } }
+  header h1{ margin:0; font-size:0.92rem; letter-spacing:2px; font-weight:700; text-shadow:0 0 8px var(--neon-glow); }
+  header .sub{ font-size:0.62rem; color:var(--text-dim); letter-spacing:1.5px; margin-top:1px;}
+
+  main{ padding:16px 14px 90px; max-width:var(--maxw); margin:0 auto; }
+  .screen{ display:none; animation:fadeIn 0.25s ease; }
+  .screen.active{ display:block; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .tabbar{ position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex; background:rgba(6,10,8,0.97);
+    border-top:1px solid var(--panel-border); padding-bottom:env(safe-area-inset-bottom,0); }
+  .tabbar button{ flex:1; background:none; border:none; color:var(--text-dim); font-family:var(--mono);
+    font-size:0.7rem; letter-spacing:2px; font-weight:700; padding:14px 4px; cursor:pointer; }
+  .tabbar button.active{ color:var(--neon); text-shadow:0 0 8px var(--neon-glow); }
+  .tabbar button.active::before{ content:'[ '; }
+  .tabbar button.active::after{ content:' ]'; }
+
+  .panel{ background:var(--panel); border:1px solid var(--panel-border); border-radius:4px; padding:14px; margin-bottom:14px; }
+  .panel h2{ margin:0 0 12px; font-size:0.68rem; letter-spacing:2.5px; color:var(--text-dim); font-weight:700; display:flex; align-items:center; gap:8px; }
+  .panel h2::before{ content:'▍'; color:var(--neon); }
+
+  button.btn{ font-family:var(--mono); font-weight:700; letter-spacing:1.5px; font-size:0.72rem;
+    color:var(--neon); background:rgba(57,255,20,0.06); border:1px solid var(--neon-dim);
+    border-radius:3px; padding:13px 10px; min-height:46px; cursor:pointer; text-transform:uppercase; }
+  button.btn:active{ background:rgba(57,255,20,0.22); }
+  button.btn.primary{ border-color:var(--neon); box-shadow:0 0 10px rgba(57,255,20,0.15); }
+  button.btn.danger{ color:var(--danger); border-color:var(--danger); background:rgba(255,45,85,0.06); }
+  button.btn.amber{ color:var(--amber); border-color:var(--amber); background:rgba(255,180,0,0.06); }
+  button.btn:disabled{ opacity:0.32; cursor:not-allowed; }
+  button.btn.small{ padding:8px; font-size:0.62rem; min-height:38px; flex:0 0 46px; }
+
+  .row{ display:flex; gap:8px; align-items:center; }
+  .row > *{ flex:1; }
+  input, select{ font-family:var(--mono); background:rgba(57,255,20,0.05); border:1px solid var(--panel-border);
+    color:var(--neon); padding:11px 10px; border-radius:3px; font-size:0.78rem; width:100%; }
+  label{ display:block; font-size:0.62rem; color:var(--text-dim); letter-spacing:1.5px; margin:10px 0 4px; }
+  label:first-child{ margin-top:0; }
+
+  .qg-badge{ display:flex; align-items:center; justify-content:center; gap:10px; padding:12px; border-radius:4px;
+    font-weight:700; letter-spacing:1.5px; font-size:0.85rem; border:1px solid var(--neon-dim); margin-bottom:6px; }
+  .qg-dot{ width:9px; height:9px; border-radius:50%; background:var(--neon); box-shadow:0 0 8px var(--neon-glow); animation:pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .qg-badge.hacked{ color:var(--danger); border-color:var(--danger); background:rgba(255,45,85,0.08); animation:flicker 0.9s infinite; }
+  .qg-badge.hacked .qg-dot{ background:var(--danger); box-shadow:0 0 8px var(--danger-glow); animation:none; }
+  @keyframes flicker{ 0%,100%{ text-shadow:0 0 8px var(--danger-glow); } 45%{ text-shadow:2px 0 var(--danger), -2px 0 #00eaff; } 50%{ text-shadow:none; opacity:0.7; } }
+  .qg-sub{ color:var(--danger); font-size:0.6rem; text-align:center; margin-bottom:14px; }
+
+  .timer-wrap{ text-align:center; padding:10px 0 4px; }
+  .timer-display{ font-size:3.4rem; font-weight:700; letter-spacing:4px; line-height:1;
+    text-shadow:0 0 6px var(--neon-glow), 0 0 22px rgba(57,255,20,0.25); }
+  .timer-display.danger{ color:var(--danger); text-shadow:0 0 6px var(--danger-glow), 0 0 22px rgba(255,45,85,0.3); animation:pulse 1s infinite; }
+  .timer-label{ font-size:0.6rem; color:var(--text-dim); letter-spacing:3px; margin-top:4px; }
+  .lock-note{ font-size:0.6rem; color:var(--amber); text-align:center; margin-top:10px; }
+
+  .stats-row{ display:flex; gap:10px; margin-top:14px; }
+  .stat-card{ flex:1; background:var(--panel); border:1px solid var(--panel-border); border-radius:4px; padding:12px; text-align:center; }
+  .stat-card .num{ font-size:1.7rem; font-weight:700; text-shadow:0 0 8px var(--neon-glow); }
+  .stat-card .lbl{ font-size:0.58rem; color:var(--text-dim); letter-spacing:1.5px; margin-top:2px; }
+  .stat-card .sub{ font-size:0.55rem; color:var(--neon-dim); margin-top:6px; }
+
+  .scanner-status{ display:flex; align-items:center; gap:10px; }
+  .scanner-status .indicator{ width:8px; height:8px; border-radius:50%; background:var(--text-dim); flex-shrink:0; }
+  .scanner-status.on .indicator{ background:var(--neon); box-shadow:0 0 8px var(--neon-glow); animation:pulse 1.2s infinite; }
+  .scanner-status .txt{ font-size:0.65rem; color:var(--text-dim); }
+  .scanner-status.on .txt{ color:var(--neon); }
+  .nfc-warning{ font-size:0.65rem; color:var(--amber); margin-top:8px; line-height:1.5; }
+
+  .log-list{ max-height:170px; overflow-y:auto; font-size:0.66rem; line-height:1.6; }
+  .log-item{ border-bottom:1px dashed rgba(57,255,20,0.1); padding:4px 0; color:var(--text-dim); }
+  .log-item .t{ color:var(--neon-dim); margin-right:6px; }
+  .log-item.success{ color:var(--neon); }
+  .log-item.error, .log-item.critical{ color:var(--danger); }
+  .log-item.warn{ color:var(--amber); }
+
+  .tag-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tag-card{ border:1px solid var(--panel-border); border-radius:4px; padding:10px; background:var(--panel); }
+  .tag-card .name{ font-size:0.72rem; font-weight:700; margin-bottom:8px; }
+  .tag-pill{ display:inline-block; font-size:0.58rem; letter-spacing:1px; font-weight:700; padding:4px 8px; border-radius:12px; border:1px solid var(--neon-dim); color:var(--neon); }
+  .empty-state{ text-align:center; padding:20px 10px; color:var(--text-dim); font-size:0.72rem; line-height:1.7; grid-column:1/-1; }
+
+  .role-row{ display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px dashed rgba(57,255,20,0.12); }
+  .role-row .meta{ color:var(--text-dim); font-size:0.56rem; margin-top:2px; word-break:break-all; }
+  .del-btn{ background:none; border:1px solid var(--danger); color:var(--danger); border-radius:3px; padding:9px 11px; font-family:var(--mono); cursor:pointer; flex:0 0 auto; }
+  .reset-btn{ background:none; border:1px solid var(--amber); color:var(--amber); border-radius:3px; padding:9px 11px; font-family:var(--mono); cursor:pointer; flex:0 0 auto; }
+  .awaiting{ text-align:center; font-size:0.68rem; color:var(--amber); padding:10px; letter-spacing:1px; animation:pulse 1s infinite; }
+
+  #toast{ position:fixed; left:50%; bottom:78px; transform:translate(-50%, 20px);
+    background:#0a1310; border:1px solid var(--neon); color:var(--neon); padding:11px 18px; border-radius:4px;
+    font-size:0.7rem; letter-spacing:0.5px; max-width:88%; text-align:center; z-index:60; opacity:0; pointer-events:none;
+    box-shadow:0 0 16px rgba(57,255,20,0.25); transition:opacity 0.2s, transform 0.2s; }
+  #toast.show{ opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+  #toast.error, #toast.critical{ border-color:var(--danger); color:var(--danger); box-shadow:0 0 16px rgba(255,45,85,0.3); }
+  #toast.warn{ border-color:var(--amber); color:var(--amber); box-shadow:0 0 16px rgba(255,180,0,0.3); }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:70; display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{ background:var(--panel); border:1px solid var(--neon); border-radius:6px; padding:22px; width:100%; max-width:340px; box-shadow:0 0 30px rgba(57,255,20,0.2); }
+  .modal-box h3{ margin:0 0 14px; font-size:0.8rem; letter-spacing:2px; text-align:center; }
+
+  ::-webkit-scrollbar{ width:4px; }
+  ::-webkit-scrollbar-thumb{ background:var(--neon-dim); }
+
+  @media (min-width:700px){
+    :root{ --maxw: 640px; }
+    .timer-display{ font-size:4.6rem; }
+    header h1{ font-size:1.1rem; }
+    .tag-grid{ grid-template-columns:1fr 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<header>
+  <div class="radar"></div>
+  <div>
+    <h1>SOFTAIR HQ // PROJECT PHOENIX</h1>
+    <div class="sub" id="header-sub">STANDBY</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ HUD ============ -->
+  <section class="screen active" id="screen-hud">
+
+    <div class="qg-badge" id="qg-badge">
+      <span class="qg-dot"></span>
+      <span id="qg-text">QG: ATTIVO</span>
+    </div>
+    <div class="qg-sub" id="qg-sub" style="display:none;"></div>
+
+    <div class="panel timer-wrap">
+      <div class="timer-display" id="timer-display">90:00</div>
+      <div class="timer-label">TEMPO PARTITA RESIDUO</div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn primary" id="btn-timer-start">▶ AVVIA</button>
+        <button class="btn amber" id="btn-timer-pause">⏸ PAUSA</button>
+        <button class="btn danger" id="btn-timer-reset">↺ RESET</button>
+      </div>
+      <div class="lock-note" id="lock-note" style="display:none;">🔒 Pausa e Reset bloccati fino a fine partita</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="num" id="score-num">0</div>
+        <div class="lbl">PUNTEGGIO</div>
+        <div class="sub" id="score-sub" style="display:none;"></div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="revived-num">0</div>
+        <div class="lbl">RIANIMATI</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>STATO TAG MEDKIT</h2>
+      <div class="tag-grid" id="medkit-grid"></div>
+    </div>
+
+    <div class="panel">
+      <h2>TAG INTEL NEMICO</h2>
+      <div class="tag-grid" id="intel-grid"></div>
+    </div>
+
+    <div class="panel">
+      <h2>SCANNER NFC</h2>
+      <div class="scanner-status" id="scanner-status">
+        <span class="indicator"></span>
+        <span class="txt" id="scanner-txt">SCANNER NON ATTIVO</span>
+      </div>
+      <button class="btn primary" id="btn-toggle-scanner" style="width:100%; margin-top:10px;">ATTIVA SCANNER NFC</button>
+      <div class="nfc-warning" id="nfc-warning" style="display:none;"></div>
+    </div>
+
+    <div class="panel">
+      <h2>LOG OPERATIVO</h2>
+      <div class="log-list" id="log-list"></div>
+    </div>
+
+  </section>
+
+  <!-- ============ SETUP (ADMIN) ============ -->
+  <section class="screen" id="screen-setup">
+
+    <div class="panel">
+      <h2>CONFIGURAZIONE PARTITA</h2>
+      <div class="lock-note" id="cfg-lock-note" style="display:none;">🔒 Bloccata durante la partita</div>
+      <label>Durata partita (minuti)</label>
+      <div class="row"><button class="btn small" data-step="cfg-match" data-delta="-5">−</button><input type="number" id="cfg-match" min="1" value="90"><button class="btn small" data-step="cfg-match" data-delta="5">+</button></div>
+      <label>Cooldown rianimo / Medkit (secondi)</label>
+      <div class="row"><button class="btn small" data-step="cfg-cooldown" data-delta="-15">−</button><input type="number" id="cfg-cooldown" min="5" value="180"><button class="btn small" data-step="cfg-cooldown" data-delta="15">+</button></div>
+      <label>Durata blocco sabotaggio (secondi)</label>
+      <div class="row"><button class="btn small" data-step="cfg-sabotage" data-delta="-30">−</button><input type="number" id="cfg-sabotage" min="5" value="300"><button class="btn small" data-step="cfg-sabotage" data-delta="30">+</button></div>
+      <button class="btn primary" id="btn-save-config" style="width:100%; margin-top:12px;">SALVA CONFIGURAZIONE</button>
+    </div>
+
+    <div class="panel">
+      <h2>REGISTRA TAG NTAG215</h2>
+      <div id="setup-role-list"></div>
+
+      <div id="add-tag-form" style="display:none; margin-top:12px;">
+        <label>Tipo nuovo tag</label>
+        <div class="row">
+          <button class="btn" id="new-type-medkit">🩹 MEDKIT</button>
+          <button class="btn" id="new-type-intel">⚠ INTEL</button>
+        </div>
+        <label>Etichetta</label>
+        <input type="text" id="new-label" placeholder="es. Medkit Bunker Est">
+        <div class="row" style="margin-top:10px;">
+          <button class="btn danger" id="btn-cancel-add">ANNULLA</button>
+          <button class="btn primary" id="btn-confirm-add">AGGIUNGI</button>
+        </div>
+      </div>
+      <button class="btn" id="btn-show-add" style="width:100%; margin-top:12px;">➕ AGGIUNGI TAG</button>
+
+      <div class="awaiting" id="awaiting-box" style="display:none;">
+        IN ATTESA DI TAG PER: <span id="awaiting-label"></span><br>
+        <button class="btn small danger" id="btn-cancel-register" style="margin-top:8px; min-height:34px;">ANNULLA</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>🧪 SIMULATORE (test senza tag fisico)</h2>
+      <label>ID tag da simulare</label>
+      <div class="row">
+        <input type="text" id="sim-id" placeholder="es. 04:A2:F1:9C">
+        <button class="btn small" id="sim-random" style="flex:0 0 90px;">CASUALE</button>
+      </div>
+      <button class="btn primary" id="btn-simulate" style="width:100%; margin-top:10px;">SIMULA LETTURA TAG</button>
+    </div>
+
+    <div class="panel">
+      <h2>ZONA PERICOLOSA</h2>
+      <div class="lock-note" id="danger-lock-note" style="display:none;">🔒 Bloccata durante la partita</div>
+      <div class="row">
+        <button class="btn danger" id="btn-reset-match">RESET PARTITA</button>
+        <button class="btn danger" id="btn-reset-tags">RESET TAG</button>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <button data-tab="hud" class="active">HUD</button>
+  <button data-tab="setup">SETUP 🔒</button>
+</nav>
+
+<div id="toast"></div>
+
+<div class="modal-overlay" id="password-overlay">
+  <div class="modal-box">
+    <h3>🔒 ACCESSO ADMIN</h3>
+    <label>Password</label>
+    <input type="password" id="password-input" placeholder="••••••••">
+    <div class="row" style="margin-top:14px;">
+      <button class="btn danger" id="btn-password-cancel">ANNULLA</button>
+      <button class="btn primary" id="btn-password-confirm">SBLOCCA</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ==================================================================
+  // Cambia qui la password del menu admin
+  const ADMIN_PASSWORD = 'Comando2026'
+  // ==================================================================
+
+  const STORAGE_KEY = 'SOFTAIR_PHOENIX_STATE_V1';
+
+  const ROLES = [
+    { key:'medkit1', label:'Medkit Base 1', type:'medkit' },
+    { key:'medkit2', label:'Medkit Base 2', type:'medkit' },
+    { key:'medkit3', label:'Medkit Base 3', type:'medkit' },
+    { key:'medkitCampo', label:'Medkit da Campo', type:'medkit' },
+    { key:'intel', label:'Intel Nemico (Sabotaggio)', type:'intel' },
+  ];
+  const SCORE_PER_MINUTE = 10;
+  const SCORE_REVIVE_PENALTY = -20;
+  const SCORE_HACK_PENALTY = -150;
+
+  const defaultSlots = () => ROLES.map(r => ({ key:r.key, label:r.label, type:r.type, fixed:true, tagId:null, cooldownUntil:0 }));
+  const defaultState = () => ({
+    score:0, revived:0, qgStatus:'ATTIVO', sabotageUntil:0, scoreAccrualSec:0,
+    timer:{ remainingMs:90*60000, endTimestamp:null, running:false },
+    slots: defaultSlots(),
+    config:{ matchMin:90, cooldownSec:180, sabotageSec:300 },
+    log:[],
+  });
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      const base = defaultState();
+      let slots = base.slots.map(s=>({...s}));
+      if(Array.isArray(parsed.slots)){
+        parsed.slots.forEach(ps=>{
+          const idx = slots.findIndex(s=>s.key===ps.key);
+          if(idx>=0) slots[idx] = {...slots[idx], ...ps};
+          else slots.push({...ps});
+        });
+      }
+      return {
+        ...base, ...parsed, slots,
+        timer:{...base.timer, ...(parsed.timer||{})},
+        config:{...base.config, ...(parsed.config||{})},
+        log: Array.isArray(parsed.log) ? parsed.log : base.log,
+      };
+    }catch(e){ return defaultState(); }
+  }
+  function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+
+  let state = loadState();
+  let adminUnlocked = false;
+  let awaitingRegistration = null;
+  let ndefReader = null;
+  let isScanning = false;
+  let audioCtx = null;
+  let timerExpiredFired = false;
+
+  // ---------------- audio (Web Audio, nessuna libreria/asset esterno) ----------------
+  function ensureAudio(){
+    if(!audioCtx){ const AC = window.AudioContext||window.webkitAudioContext; if(AC) audioCtx = new AC(); }
+    if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+  }
+  function playBeep(kind){
+    ensureAudio();
+    if(!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.0001, now);
+    if(kind==='scan'){ o.frequency.setValueAtTime(1500,now); g.gain.exponentialRampToValueAtTime(0.15,now+0.01); g.gain.exponentialRampToValueAtTime(0.0001,now+0.09); o.start(now); o.stop(now+0.1); }
+    else if(kind==='success'){ o.frequency.setValueAtTime(700,now); o.frequency.exponentialRampToValueAtTime(1500,now+0.14); g.gain.exponentialRampToValueAtTime(0.18,now+0.02); g.gain.exponentialRampToValueAtTime(0.0001,now+0.28); o.start(now); o.stop(now+0.3); }
+    else if(kind==='warn'){ o.type='square'; o.frequency.setValueAtTime(500,now); g.gain.exponentialRampToValueAtTime(0.12,now+0.02); g.gain.exponentialRampToValueAtTime(0.0001,now+0.2); o.start(now); o.stop(now+0.22); }
+    else if(kind==='error'){ o.type='square'; o.frequency.setValueAtTime(220,now); g.gain.exponentialRampToValueAtTime(0.16,now+0.02); g.gain.exponentialRampToValueAtTime(0.0001,now+0.25); o.start(now); o.stop(now+0.26); }
+    else if(kind==='alarm'){ o.type='sawtooth'; o.frequency.setValueAtTime(440,now); o.frequency.linearRampToValueAtTime(180,now+0.5); g.gain.exponentialRampToValueAtTime(0.2,now+0.02); g.gain.exponentialRampToValueAtTime(0.0001,now+0.6); o.start(now); o.stop(now+0.62); }
+  }
+
+  // ---------------- toast + log ----------------
+  let toastTimeout;
+  function toast(msg, kind){
+    kind = kind||'info';
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'toast show '+kind;
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(()=> el.classList.remove('show'), 2800);
+  }
+  function logEvent(msg, kind){
+    const t = new Date();
+    const time = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0');
+    state.log.unshift({time,msg,kind:kind||'info'});
+    state.log = state.log.slice(0,30);
+    saveState(); renderLog();
+  }
+
+  // ---------------- NFC ----------------
+  function extractId(event){
+    if(event.serialNumber) return event.serialNumber;
+    try{
+      const rec = event.message.records[0];
+      if(rec){ const dec = new TextDecoder(rec.encoding||'utf-8'); return 'DATA:'+dec.decode(rec.data); }
+    }catch(e){}
+    return null;
+  }
+  async function startScanning(){
+    if(isScanning) return true;
+    if(!('NDEFReader' in window)){
+      document.getElementById('nfc-warning').style.display='block';
+      document.getElementById('nfc-warning').textContent =
+        'Web NFC non disponibile: serve Chrome su Android con NFC attivo, pagina in HTTPS.';
+      toast('Web NFC non supportato qui.', 'error');
+      return false;
+    }
+    try{
+      ensureAudio();
+      ndefReader = new NDEFReader();
+      await ndefReader.scan();
+      isScanning = true;
+      ndefReader.onreading = onTagRead;
+      ndefReader.onreadingerror = () => { playBeep('error'); toast('Errore di lettura tag, riprova.', 'error'); };
+      logEvent('Scanner NFC attivato', 'success');
+      renderScannerUI();
+      return true;
+    }catch(err){
+      toast('Permesso NFC negato: '+err.message, 'error');
+      logEvent('Permesso NFC negato', 'error');
+      return false;
+    }
+  }
+  function onTagRead(event){
+    const id = extractId(event);
+    playBeep('scan');
+    if(!id){ playBeep('error'); toast('Tag non identificabile.', 'error'); return; }
+    handleScannedId(id);
+  }
+  function handleScannedId(id){
+    if(awaitingRegistration){ registerTag(id); return; }
+    const slot = state.slots.find(s => s.tagId === id);
+    if(!slot){
+      playBeep('error'); toast('TAG NON REGISTRATO', 'error');
+      logEvent(`Tag sconosciuto scansionato (${id.slice(0,12)})`, 'error');
+      return;
+    }
+    if(slot.type==='medkit') handleMedkit(slot); else handleIntel(slot);
+  }
+  function registerTag(id){
+    const slotKey = awaitingRegistration;
+    const slot = state.slots.find(s=>s.key===slotKey);
+    if(!slot) return;
+    slot.tagId = id; slot.cooldownUntil = 0;
+    awaitingRegistration = null;
+    saveState();
+    playBeep('success');
+    toast(`TAG REGISTRATO: ${slot.label}`, 'success');
+    logEvent(`Registrato UID per "${slot.label}"`, 'success');
+    document.getElementById('awaiting-box').style.display = 'none';
+    renderAll();
+  }
+  function handleMedkit(slot){
+    const now = Date.now();
+    if(state.sabotageUntil && now < state.sabotageUntil){
+      playBeep('error'); toast('SISTEMA VIOLATO — RESPAWN BLOCCATO', 'critical');
+      logEvent(`Respawn negato (QG hackerato) su ${slot.label}`, 'error');
+      return;
+    }
+    if(slot.cooldownUntil && now < slot.cooldownUntil){
+      const rem = Math.ceil((slot.cooldownUntil-now)/1000);
+      playBeep('warn'); toast(`${slot.label}: IN RICARICA (${rem}s)`, 'warn');
+      return;
+    }
+    slot.cooldownUntil = now + state.config.cooldownSec*1000;
+    state.revived++;
+    state.score += SCORE_REVIVE_PENALTY;
+    saveState();
+    playBeep('success');
+    toast(`GIOCATORE RIANIMATO — ${slot.label} (${SCORE_REVIVE_PENALTY})`, 'success');
+    logEvent(`Rianimazione via ${slot.label} (${SCORE_REVIVE_PENALTY} punti)`, 'success');
+    renderAll();
+  }
+  function handleIntel(slot){
+    state.sabotageUntil = Date.now() + state.config.sabotageSec*1000;
+    state.qgStatus = 'HACKERATO';
+    state.score += SCORE_HACK_PENALTY;
+    saveState();
+    playBeep('alarm');
+    toast(`SISTEMA VIOLATO — HQ COMPROMESSO (${SCORE_HACK_PENALTY})`, 'critical');
+    logEvent(`Sabotaggio rilevato: ${slot.label} (${SCORE_HACK_PENALTY} punti)`, 'critical');
+    document.body.classList.add('glitch');
+    renderAll();
+  }
+
+  // ---------------- timer + punteggio automatico ----------------
+  function startTimer(){
+    if(state.timer.running || state.timer.remainingMs<=0) return;
+    state.timer.endTimestamp = Date.now() + state.timer.remainingMs;
+    state.timer.running = true;
+    timerExpiredFired = false;
+    saveState(); logEvent('Timer partita avviato','success'); renderAll();
+  }
+  function resetTimer(){
+    if(state.timer.running) return; // bloccato durante la partita
+    state.timer = { remainingMs: state.config.matchMin*60000, endTimestamp:null, running:false };
+    state.scoreAccrualSec = 0;
+    saveState(); logEvent('Timer azzerato','info'); renderAll();
+  }
+
+  function tick(){
+    const now = Date.now();
+    let changed = false;
+
+    if(state.timer.running && state.timer.endTimestamp){
+      const remainingMs = Math.max(0, state.timer.endTimestamp-now);
+      if(remainingMs !== state.timer.remainingMs){ state.timer.remainingMs = remainingMs; changed = true; }
+      if(remainingMs<=0 && !timerExpiredFired){
+        state.timer.running=false; state.timer.endTimestamp=null; timerExpiredFired=true; changed=true;
+        playBeep('alarm'); toast('TEMPO SCADUTO','critical'); logEvent('Fine partita: tempo scaduto','critical');
+      }
+    }
+    if(state.sabotageUntil && now >= state.sabotageUntil){
+      state.sabotageUntil=0; state.qgStatus='ATTIVO'; changed=true;
+      document.body.classList.remove('glitch');
+      logEvent('Sistema QG ripristinato','success');
+    }
+    if(state.timer.running && state.qgStatus==='ATTIVO'){
+      state.scoreAccrualSec++; changed=true;
+      if(state.scoreAccrualSec>=60){
+        state.scoreAccrualSec-=60; state.score += SCORE_PER_MINUTE;
+        logEvent(`Punteggio orario: +${SCORE_PER_MINUTE} (QG attivo)`,'success');
+      }
+    }
+    if(changed) saveState();
+    renderTimer(); renderStatus(); renderTagsList();
+  }
+
+  // ---------------- rendering ----------------
+  function fmtTime(ms){ const t=Math.ceil(ms/1000); const m=Math.floor(t/60); const s=t%60; return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function renderTimer(){
+    const el = document.getElementById('timer-display');
+    el.textContent = fmtTime(state.timer.remainingMs);
+    el.classList.toggle('danger', state.timer.remainingMs<=5*60000 && state.timer.remainingMs>0);
+    document.getElementById('header-sub').textContent = state.timer.running ? 'PARTITA IN CORSO' : (state.timer.remainingMs<=0 ? 'PARTITA TERMINATA' : 'STANDBY');
+    const running = state.timer.running;
+    document.getElementById('btn-timer-start').disabled = running || state.timer.remainingMs<=0;
+    document.getElementById('btn-timer-pause').disabled = running;
+    document.getElementById('btn-timer-reset').disabled = running;
+    document.getElementById('lock-note').style.display = running ? 'block' : 'none';
+    document.getElementById('cfg-lock-note').style.display = running ? 'block' : 'none';
+    document.getElementById('danger-lock-note').style.display = running ? 'block' : 'none';
+    ['btn-save-config','btn-reset-match','btn-reset-tags'].forEach(id=>{ document.getElementById(id).disabled = running; });
+  }
+  function renderStatus(){
+    document.getElementById('score-num').textContent = state.score;
+    document.getElementById('revived-num').textContent = state.revived;
+    const hacked = state.qgStatus==='HACKERATO';
+    const badge = document.getElementById('qg-badge');
+    const sub = document.getElementById('qg-sub');
+    badge.classList.toggle('hacked', hacked);
+    document.getElementById('qg-text').textContent = hacked ? 'QG: SISTEMA VIOLATO / HACKERATO' : 'QG: ATTIVO';
+    if(hacked){
+      const rem = Math.max(0, Math.ceil((state.sabotageUntil-Date.now())/1000));
+      sub.style.display='block';
+      sub.textContent = `RIPRISTINO TRA ${rem}s — respawn bloccati, punteggio orario fermo`;
+    } else { sub.style.display='none'; }
+    const scoreSub = document.getElementById('score-sub');
+    if(state.timer.running && !hacked){ scoreSub.style.display='block'; scoreSub.textContent = `+${SCORE_PER_MINUTE} tra ${60-state.scoreAccrualSec}s`; }
+    else { scoreSub.style.display='none'; }
+  }
+  function renderScannerUI(){
+    const box = document.getElementById('scanner-status');
+    box.classList.toggle('on', isScanning);
+    document.getElementById('scanner-txt').textContent = isScanning ? 'SCANNER ATTIVO — pronto alla lettura' : 'SCANNER NON ATTIVO';
+    const btn = document.getElementById('btn-toggle-scanner');
+    btn.textContent = isScanning ? 'SCANNER ATTIVO ✓' : 'ATTIVA SCANNER NFC';
+    btn.disabled = isScanning;
+  }
+  function renderLog(){
+    const list = document.getElementById('log-list');
+    if(state.log.length===0){ list.innerHTML = '<div class="log-item">Nessun evento registrato.</div>'; return; }
+    list.innerHTML = state.log.map(e=>`<div class="log-item ${e.kind}"><span class="t">${e.time}</span>${escapeHtml(e.msg)}</div>`).join('');
+  }
+  function renderTagsList(){
+    const now = Date.now();
+    const medkits = state.slots.filter(s=>s.type==='medkit');
+    const intels = state.slots.filter(s=>s.type==='intel');
+    const mGrid = document.getElementById('medkit-grid');
+    mGrid.innerHTML = medkits.length ? medkits.map(s=>{
+      const cooling = s.cooldownUntil && now < s.cooldownUntil;
+      const rem = cooling ? Math.ceil((s.cooldownUntil-now)/1000) : 0;
+      const unset = !s.tagId;
+      const color = unset ? 'var(--text-dim)' : cooling ? 'var(--amber)' : 'var(--neon-dim)';
+      const txt = unset ? 'NON REGISTRATO' : cooling ? `RICARICA ${rem}s` : 'PRONTO';
+      const txtColor = unset ? 'var(--text-dim)' : cooling ? 'var(--amber)' : 'var(--neon)';
+      return `<div class="tag-card"><div class="name">${escapeHtml(s.label)}</div><span class="tag-pill" style="border-color:${color}; color:${txtColor};">${txt}</span></div>`;
+    }).join('') : '<div class="empty-state">Nessun tag Medkit registrato.</div>';
+    const iGrid = document.getElementById('intel-grid');
+    iGrid.innerHTML = intels.length ? intels.map(s=>{
+      const color = s.tagId ? 'var(--danger)' : 'var(--text-dim)';
+      const txt = s.tagId ? 'ATTIVO' : 'NON REGISTRATO';
+      return `<div class="tag-card"><div class="name">${escapeHtml(s.label)}</div><span class="tag-pill" style="border-color:${color}; color:${color};">${txt}</span></div>`;
+    }).join('') : '<div class="empty-state">Nessun tag Intel registrato.</div>';
+  }
+  function renderSetupList(){
+    const box = document.getElementById('setup-role-list');
+    box.innerHTML = state.slots.map(s=>`
+      <div class="role-row">
+        <div style="flex:1;">
+          <div style="color:${s.type==='medkit'?'var(--neon)':'var(--danger)'}; font-size:0.72rem; font-weight:700;">${s.type==='medkit'?'🩹':'⚠'} ${escapeHtml(s.label)}</div>
+          <div class="meta">${s.tagId ? escapeHtml(s.tagId) : 'non assegnato'}</div>
+        </div>
+        <button class="btn small" data-register="${escapeHtml(s.key)}" style="flex:0 0 84px; min-height:40px;">REGISTRA</button>
+        ${s.tagId ? `<button class="reset-btn" data-clear="${escapeHtml(s.key)}">⟲</button>` : ''}
+        ${!s.fixed ? `<button class="del-btn" data-del="${escapeHtml(s.key)}">✕</button>` : ''}
+      </div>
+    `).join('');
+    box.querySelectorAll('[data-register]').forEach(btn=>{
+      btn.addEventListener('click', ()=> startRegister(btn.dataset.register));
+    });
+    box.querySelectorAll('[data-clear]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const slot = state.slots.find(s=>s.key===btn.dataset.clear);
+        if(slot){ slot.tagId=null; slot.cooldownUntil=0; saveState(); toast('Assegnazione rimossa','info'); renderAll(); }
+      });
+    });
+    box.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        state.slots = state.slots.filter(s=> !(s.key===btn.dataset.del && !s.fixed));
+        if(awaitingRegistration===btn.dataset.del){ awaitingRegistration=null; document.getElementById('awaiting-box').style.display='none'; }
+        saveState(); toast('Tag rimosso','info'); renderAll();
+      });
+    });
+  }
+  function renderConfigInputs(){
+    document.getElementById('cfg-match').value = state.config.matchMin;
+    document.getElementById('cfg-cooldown').value = state.config.cooldownSec;
+    document.getElementById('cfg-sabotage').value = state.config.sabotageSec;
+  }
+  function renderAll(){ renderTimer(); renderStatus(); renderScannerUI(); renderLog(); renderTagsList(); renderSetupList(); renderConfigInputs(); }
+
+  // ---------------- registrazione tag ----------------
+  async function startRegister(slotKey){
+    const ok = await startScanning();
+    if(!ok && !('NDEFReader' in window)) return;
+    awaitingRegistration = slotKey;
+    const slot = state.slots.find(s=>s.key===slotKey);
+    document.getElementById('awaiting-label').textContent = slot ? slot.label : slotKey;
+    document.getElementById('awaiting-box').style.display = 'block';
+    toast('Avvicina il tag da registrare...', 'warn');
+  }
+
+  // ---------------- admin password gate ----------------
+  function showSetupScreen(){
+    document.querySelectorAll('.tabbar button').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.tabbar button[data-tab="setup"]').classList.add('active');
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('screen-setup').classList.add('active');
+  }
+  function requestAdminAccess(){
+    if(adminUnlocked){ showSetupScreen(); return; }
+    document.getElementById('password-input').value = '';
+    document.getElementById('password-overlay').classList.add('show');
+    setTimeout(()=> document.getElementById('password-input').focus(), 50);
+  }
+
+  // ---------------- tabs ----------------
+  document.querySelectorAll('.tabbar button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(btn.dataset.tab==='setup'){ requestAdminAccess(); return; }
+      document.querySelectorAll('.tabbar button').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('screen-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+  document.getElementById('btn-password-confirm').addEventListener('click', ()=>{
+    const val = document.getElementById('password-input').value;
+    if(val === ADMIN_PASSWORD){
+      adminUnlocked = true;
+      document.getElementById('password-overlay').classList.remove('show');
+      showSetupScreen();
+    } else {
+      toast('Password errata', 'error');
+    }
+  });
+  document.getElementById('password-input').addEventListener('keydown', (e)=>{ if(e.key==='Enter') document.getElementById('btn-password-confirm').click(); });
+  document.getElementById('btn-password-cancel').addEventListener('click', ()=>{
+    document.getElementById('password-overlay').classList.remove('show');
+  });
+
+  // ---------------- wiring home ----------------
+  document.getElementById('btn-timer-start').addEventListener('click', startTimer);
+  document.getElementById('btn-timer-pause').addEventListener('click', ()=>{}); // bloccato mentre attivo, no-op
+  document.getElementById('btn-timer-reset').addEventListener('click', resetTimer);
+  document.getElementById('btn-toggle-scanner').addEventListener('click', startScanning);
+
+  // ---------------- wiring setup ----------------
+  document.querySelectorAll('[data-step]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const input = document.getElementById(btn.dataset.step);
+      const min = parseInt(input.min||'1',10);
+      const next = Math.max(min, (parseInt(input.value,10)||0) + parseInt(btn.dataset.delta,10));
+      input.value = next;
+    });
+  });
+  document.getElementById('btn-save-config').addEventListener('click', ()=>{
+    if(state.timer.running) return;
+    const m = parseInt(document.getElementById('cfg-match').value,10);
+    const c = parseInt(document.getElementById('cfg-cooldown').value,10);
+    const s = parseInt(document.getElementById('cfg-sabotage').value,10);
+    if(m>0) state.config.matchMin=m;
+    if(c>0) state.config.cooldownSec=c;
+    if(s>0) state.config.sabotageSec=s;
+    state.timer.remainingMs = state.config.matchMin*60000;
+    saveState(); toast('Configurazione salvata','success'); logEvent('Configurazione aggiornata','info'); renderAll();
+  });
+
+  let newType = 'medkit';
+  document.getElementById('btn-show-add').addEventListener('click', ()=>{
+    document.getElementById('add-tag-form').style.display='block';
+    document.getElementById('btn-show-add').style.display='none';
+  });
+  document.getElementById('btn-cancel-add').addEventListener('click', ()=>{
+    document.getElementById('add-tag-form').style.display='none';
+    document.getElementById('btn-show-add').style.display='block';
+    document.getElementById('new-label').value='';
+  });
+  document.getElementById('new-type-medkit').addEventListener('click', ()=>{ newType='medkit'; toast('Tipo: Medkit','info'); });
+  document.getElementById('new-type-intel').addEventListener('click', ()=>{ newType='intel'; toast('Tipo: Intel','info'); });
+  document.getElementById('btn-confirm-add').addEventListener('click', ()=>{
+    const label = document.getElementById('new-label').value.trim();
+    const countOfType = state.slots.filter(s=>s.type===newType && !s.fixed).length;
+    const finalLabel = label || (newType==='medkit' ? `Medkit Extra ${countOfType+1}` : `Intel Extra ${countOfType+1}`);
+    const key = 'custom_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    state.slots.push({key, label:finalLabel, type:newType, fixed:false, tagId:null, cooldownUntil:0});
+    saveState(); toast('Tag aggiunto: '+finalLabel,'success');
+    document.getElementById('add-tag-form').style.display='none';
+    document.getElementById('btn-show-add').style.display='block';
+    document.getElementById('new-label').value='';
+    renderAll();
+  });
+  document.getElementById('btn-cancel-register').addEventListener('click', ()=>{
+    awaitingRegistration=null; document.getElementById('awaiting-box').style.display='none';
+  });
+  document.getElementById('sim-random').addEventListener('click', ()=>{
+    const id = Array.from({length:4}, ()=> Math.floor(Math.random()*256).toString(16).padStart(2,'0').toUpperCase()).join(':');
+    document.getElementById('sim-id').value = id;
+  });
+  document.getElementById('btn-simulate').addEventListener('click', ()=>{
+    const id = document.getElementById('sim-id').value.trim();
+    if(!id){ toast('Inserisci o genera un ID','error'); return; }
+    handleScannedId(id);
+    if(awaitingRegistration) document.getElementById('awaiting-box').style.display='none';
+  });
+  document.getElementById('btn-reset-match').addEventListener('click', ()=>{
+    if(state.timer.running) return;
+    if(!confirm('Azzerare punteggio, rianimazioni, timer e stato QG?')) return;
+    const slots = state.slots, config = state.config;
+    state = defaultState();
+    state.slots = slots; state.config = config;
+    state.timer.remainingMs = config.matchMin*60000;
+    timerExpiredFired = false;
+    document.body.classList.remove('glitch');
+    saveState(); toast('Partita azzerata','info'); renderAll();
+  });
+  document.getElementById('btn-reset-tags').addEventListener('click', ()=>{
+    if(state.timer.running) return;
+    if(!confirm('Ripristinare i 5 tag di default e rimuovere quelli aggiunti?')) return;
+    state.slots = defaultSlots();
+    saveState(); toast('Tag ripristinati ai 5 di default','info'); renderAll();
+  });
+
+  // ---------------- init ----------------
+  if(!('NDEFReader' in window)){
+    document.getElementById('nfc-warning').style.display='block';
+    document.getElementById('nfc-warning').textContent = 'Web NFC non rilevato: apri questa pagina in Chrome su Android (HTTPS) con NFC attivo. Il Simulatore in SETUP funziona comunque per testare la logica.';
+  }
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  }
+
+  renderAll();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
