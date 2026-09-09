@@ -13,13 +13,22 @@
     --neon:#39ff14; --neon-glow: rgba(57,255,20,0.55); --neon-dim:#1c6e10;
     --text-dim:#5f8a57; --amber:#ffb400; --amber-glow: rgba(255,180,0,0.5);
     --danger:#ff2d55; --danger-glow: rgba(255,45,85,0.65);
+    --cyan:#00eaff; --cyan-glow: rgba(0,234,255,0.6);
     --mono: 'Consolas','Menlo','Courier New',monospace;
     --maxw: 480px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
   html,body{height:100%;margin:0;padding:0;background:var(--bg);}
-  body{ font-family:var(--mono); color:var(--neon); overflow-x:hidden; min-height:100vh;
-    background: radial-gradient(ellipse at 50% -10%, rgba(57,255,20,0.10), transparent 55%), var(--bg); }
+  body{ font-family:var(--mono); color:var(--neon); overflow-x:hidden; min-height:100vh; min-height:100dvh;
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 50% -10%, rgba(57,255,20,0.10), transparent 55%),
+      linear-gradient(rgba(57,255,20,0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57,255,20,0.055) 1px, transparent 1px);
+    background-size: auto, 40px 40px, 40px 40px;
+    background-position: 0 0, 0 0, 0 0;
+    animation: gridDrift 22s linear infinite; }
+  @keyframes gridDrift{ from{ background-position:0 0, 0 0, 0 0; } to{ background-position:0 0, 40px 40px, 40px 40px; } }
 
   .scanlines{ position:fixed; inset:0; pointer-events:none; z-index:40; mix-blend-mode:overlay;
     background:repeating-linear-gradient(to bottom, rgba(57,255,20,0.05) 0px, rgba(57,255,20,0.05) 1px, transparent 1px, transparent 3px);
@@ -50,9 +59,23 @@
   .tabbar button.active::before{ content:'[ '; }
   .tabbar button.active::after{ content:' ]'; }
 
-  .panel{ background:var(--panel); border:1px solid var(--panel-border); border-radius:4px; padding:14px; margin-bottom:14px; }
+  .panel{ position:relative; background:var(--panel); border:1px solid var(--panel-border); border-radius:4px; padding:14px; margin-bottom:14px; }
+  .panel::before, .panel::after{ content:''; position:absolute; width:11px; height:11px; opacity:0.75; pointer-events:none; }
+  .panel::before{ top:-1px; left:-1px; border-top:2px solid var(--neon-dim); border-left:2px solid var(--neon-dim); }
+  .panel::after{ bottom:-1px; right:-1px; border-bottom:2px solid var(--neon-dim); border-right:2px solid var(--neon-dim); }
   .panel h2{ margin:0 0 12px; font-size:0.68rem; letter-spacing:2.5px; color:var(--text-dim); font-weight:700; display:flex; align-items:center; gap:8px; }
   .panel h2::before{ content:'▍'; color:var(--neon); }
+
+  .nfc-icon{ width:48px; height:48px; position:relative; flex-shrink:0; }
+  .nfc-icon svg{ width:100%; height:100%; overflow:visible; }
+  .nfc-icon .ring{ transform-origin:30px 70px; opacity:0; }
+  .nfc-icon.active .ring1{ animation: nfcPulse 1.8s ease-out infinite; }
+  .nfc-icon.active .ring2{ animation: nfcPulse 1.8s ease-out infinite 0.3s; }
+  .nfc-icon.active .ring3{ animation: nfcPulse 1.8s ease-out infinite 0.6s; }
+  .nfc-icon .dot{ transition: filter 0.15s; }
+  @keyframes nfcPulse{ 0%{ opacity:0.9; transform:scale(0.6);} 80%{opacity:0;} 100%{opacity:0; transform:scale(1.15);} }
+  .nfc-icon.ping .dot{ animation: nfcFlash 0.45s ease-out; }
+  @keyframes nfcFlash{ 0%{ filter: drop-shadow(0 0 2px var(--cyan)); r:6;} 40%{ filter: drop-shadow(0 0 16px var(--cyan)); } 100%{ filter: drop-shadow(0 0 2px var(--cyan)); } }
 
   button.btn{ font-family:var(--mono); font-weight:700; letter-spacing:1.5px; font-size:0.72rem;
     color:var(--neon); background:rgba(57,255,20,0.06); border:1px solid var(--neon-dim);
@@ -202,7 +225,14 @@
     <div class="panel">
       <h2>SCANNER NFC</h2>
       <div class="scanner-status" id="scanner-status">
-        <span class="indicator"></span>
+        <div class="nfc-icon" id="nfc-icon">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle class="dot" cx="30" cy="70" r="6" fill="var(--cyan)"/>
+            <path class="ring ring1" d="M 30 70 A 20 20 0 0 1 50 50" stroke="var(--cyan)" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <path class="ring ring2" d="M 30 70 A 34 34 0 0 1 64 36" stroke="var(--cyan)" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <path class="ring ring3" d="M 30 70 A 48 48 0 0 1 78 22" stroke="var(--cyan)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
         <span class="txt" id="scanner-txt">SCANNER NON ATTIVO</span>
       </div>
       <button class="btn primary" id="btn-toggle-scanner" style="width:100%; margin-top:10px;">ATTIVA SCANNER NFC</button>
@@ -218,6 +248,17 @@
 
   <!-- ============ SETUP (ADMIN) ============ -->
   <section class="screen" id="screen-setup">
+
+    <div class="panel">
+      <h2>⏻ CONTROLLO PARTITA (ADMIN)</h2>
+      <div class="row">
+        <button class="btn amber" id="btn-admin-pause">⏸ FERMA PARTITA</button>
+        <button class="btn primary" id="btn-admin-resume">▶ RIPRENDI PARTITA</button>
+      </div>
+      <div style="font-size:0.6rem; color:var(--text-dim); margin-top:10px; line-height:1.5;">
+        Questi pulsanti funzionano anche a partita in corso — visibili solo qui, dopo la password. I giocatori sulla schermata HUD non possono fermare o resettare il timer.
+      </div>
+    </div>
 
     <div class="panel">
       <h2>CONFIGURAZIONE PARTITA</h2>
@@ -304,7 +345,7 @@
 
   // ==================================================================
   // Cambia qui la password del menu admin
-  const ADMIN_PASSWORD = 'Comando2026'
+  const ADMIN_PASSWORD = 'phoenix2026';
   // ==================================================================
 
   const STORAGE_KEY = 'SOFTAIR_PHOENIX_STATE_V1';
@@ -435,6 +476,7 @@
   function onTagRead(event){
     const id = extractId(event);
     playBeep('scan');
+    pingNfcIcon();
     if(!id){ playBeep('error'); toast('Tag non identificabile.', 'error'); return; }
     handleScannedId(id);
   }
@@ -509,6 +551,28 @@
     saveState(); logEvent('Timer azzerato','info'); renderAll();
   }
 
+  // Controlli riservati all'admin (menu SETUP, dietro password): funzionano anche a partita in corso.
+  function adminPauseTimer(){
+    if(!state.timer.running) return;
+    state.timer.remainingMs = Math.max(0, state.timer.endTimestamp - Date.now());
+    state.timer.running = false;
+    state.timer.endTimestamp = null;
+    saveState();
+    toast('Partita fermata da admin', 'warn');
+    logEvent('Partita fermata manualmente da admin', 'warn');
+    renderAll();
+  }
+  function adminResumeTimer(){
+    if(state.timer.running || state.timer.remainingMs<=0) return;
+    state.timer.endTimestamp = Date.now() + state.timer.remainingMs;
+    state.timer.running = true;
+    timerExpiredFired = false;
+    saveState();
+    toast('Partita ripresa da admin', 'success');
+    logEvent('Partita ripresa manualmente da admin', 'success');
+    renderAll();
+  }
+
   function tick(){
     const now = Date.now();
     let changed = false;
@@ -554,6 +618,8 @@
     document.getElementById('cfg-lock-note').style.display = running ? 'block' : 'none';
     document.getElementById('danger-lock-note').style.display = running ? 'block' : 'none';
     ['btn-save-config','btn-reset-match','btn-reset-tags'].forEach(id=>{ document.getElementById(id).disabled = running; });
+    document.getElementById('btn-admin-pause').disabled = !running;
+    document.getElementById('btn-admin-resume').disabled = running || state.timer.remainingMs<=0;
   }
   function renderStatus(){
     document.getElementById('score-num').textContent = state.score;
@@ -579,6 +645,12 @@
     const btn = document.getElementById('btn-toggle-scanner');
     btn.textContent = isScanning ? 'SCANNER ATTIVO ✓' : 'ATTIVA SCANNER NFC';
     btn.disabled = isScanning;
+    document.getElementById('nfc-icon').classList.toggle('active', isScanning);
+  }
+  function pingNfcIcon(){
+    const el = document.getElementById('nfc-icon');
+    el.classList.add('ping');
+    setTimeout(()=> el.classList.remove('ping'), 460);
   }
   function renderLog(){
     const list = document.getElementById('log-list');
@@ -698,6 +770,8 @@
   document.getElementById('btn-timer-pause').addEventListener('click', ()=>{}); // bloccato mentre attivo, no-op
   document.getElementById('btn-timer-reset').addEventListener('click', resetTimer);
   document.getElementById('btn-toggle-scanner').addEventListener('click', startScanning);
+  document.getElementById('btn-admin-pause').addEventListener('click', adminPauseTimer);
+  document.getElementById('btn-admin-resume').addEventListener('click', adminResumeTimer);
 
   // ---------------- wiring setup ----------------
   document.querySelectorAll('[data-step]').forEach(btn=>{
