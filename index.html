@@ -235,7 +235,6 @@
         </div>
         <span class="txt" id="scanner-txt">SCANNER NON ATTIVO</span>
       </div>
-      <button class="btn primary" id="btn-toggle-scanner" style="width:100%; margin-top:10px;">ATTIVA SCANNER NFC</button>
       <div class="nfc-warning" id="nfc-warning" style="display:none;"></div>
     </div>
 
@@ -269,6 +268,10 @@
       <div class="row"><button class="btn small" data-step="cfg-cooldown" data-delta="-15">−</button><input type="number" id="cfg-cooldown" min="5" value="180"><button class="btn small" data-step="cfg-cooldown" data-delta="15">+</button></div>
       <label>Durata blocco sabotaggio (secondi)</label>
       <div class="row"><button class="btn small" data-step="cfg-sabotage" data-delta="-30">−</button><input type="number" id="cfg-sabotage" min="5" value="300"><button class="btn small" data-step="cfg-sabotage" data-delta="30">+</button></div>
+      <label>Penalità per rianimazione (punti, negativo)</label>
+      <div class="row"><button class="btn small" data-step="cfg-revive" data-delta="-5">−</button><input type="number" id="cfg-revive" value="-20"><button class="btn small" data-step="cfg-revive" data-delta="5">+</button></div>
+      <label>Penalità sabotaggio/hackeraggio (punti, negativo)</label>
+      <div class="row"><button class="btn small" data-step="cfg-hack" data-delta="-10">−</button><input type="number" id="cfg-hack" value="-150"><button class="btn small" data-step="cfg-hack" data-delta="10">+</button></div>
       <button class="btn primary" id="btn-save-config" style="width:100%; margin-top:12px;">SALVA CONFIGURAZIONE</button>
     </div>
 
@@ -358,15 +361,13 @@
     { key:'intel', label:'Intel Nemico (Sabotaggio)', type:'intel' },
   ];
   const SCORE_PER_MINUTE = 10;
-  const SCORE_REVIVE_PENALTY = -20;
-  const SCORE_HACK_PENALTY = -150;
 
   const defaultSlots = () => ROLES.map(r => ({ key:r.key, label:r.label, type:r.type, fixed:true, tagId:null, cooldownUntil:0 }));
   const defaultState = () => ({
     score:0, revived:0, qgStatus:'ATTIVO', sabotageUntil:0, scoreAccrualSec:0,
     timer:{ remainingMs:90*60000, endTimestamp:null, running:false },
     slots: defaultSlots(),
-    config:{ matchMin:90, cooldownSec:180, sabotageSec:300 },
+    config:{ matchMin:90, cooldownSec:180, sabotageSec:300, revivePenalty:-20, hackPenalty:-150 },
     log:[],
   });
 
@@ -448,13 +449,15 @@
     }catch(e){}
     return null;
   }
-  async function startScanning(){
+  async function startScanning(silent){
     if(isScanning) return true;
     if(!('NDEFReader' in window)){
-      document.getElementById('nfc-warning').style.display='block';
-      document.getElementById('nfc-warning').textContent =
-        'Web NFC non disponibile: serve Chrome su Android con NFC attivo, pagina in HTTPS.';
-      toast('Web NFC non supportato qui.', 'error');
+      if(!silent){
+        document.getElementById('nfc-warning').style.display='block';
+        document.getElementById('nfc-warning').textContent =
+          'Web NFC non disponibile: serve Chrome su Android con NFC attivo, pagina in HTTPS.';
+        toast('Web NFC non supportato qui.', 'error');
+      }
       return false;
     }
     try{
@@ -468,8 +471,10 @@
       renderScannerUI();
       return true;
     }catch(err){
-      toast('Permesso NFC negato: '+err.message, 'error');
-      logEvent('Permesso NFC negato', 'error');
+      if(!silent){
+        toast('Permesso NFC negato: '+err.message, 'error');
+        logEvent('Permesso NFC negato', 'error');
+      }
       return false;
     }
   }
@@ -517,21 +522,21 @@
     }
     slot.cooldownUntil = now + state.config.cooldownSec*1000;
     state.revived++;
-    state.score += SCORE_REVIVE_PENALTY;
+    state.score += state.config.revivePenalty;
     saveState();
     playBeep('success');
-    toast(`GIOCATORE RIANIMATO — ${slot.label} (${SCORE_REVIVE_PENALTY})`, 'success');
-    logEvent(`Rianimazione via ${slot.label} (${SCORE_REVIVE_PENALTY} punti)`, 'success');
+    toast(`GIOCATORE RIANIMATO — ${slot.label} (${state.config.revivePenalty})`, 'success');
+    logEvent(`Rianimazione via ${slot.label} (${state.config.revivePenalty} punti)`, 'success');
     renderAll();
   }
   function handleIntel(slot){
     state.sabotageUntil = Date.now() + state.config.sabotageSec*1000;
     state.qgStatus = 'HACKERATO';
-    state.score += SCORE_HACK_PENALTY;
+    state.score += state.config.hackPenalty;
     saveState();
     playBeep('alarm');
-    toast(`SISTEMA VIOLATO — HQ COMPROMESSO (${SCORE_HACK_PENALTY})`, 'critical');
-    logEvent(`Sabotaggio rilevato: ${slot.label} (${SCORE_HACK_PENALTY} punti)`, 'critical');
+    toast(`SISTEMA VIOLATO — HQ COMPROMESSO (${state.config.hackPenalty})`, 'critical');
+    logEvent(`Sabotaggio rilevato: ${slot.label} (${state.config.hackPenalty} punti)`, 'critical');
     document.body.classList.add('glitch');
     renderAll();
   }
@@ -641,10 +646,7 @@
   function renderScannerUI(){
     const box = document.getElementById('scanner-status');
     box.classList.toggle('on', isScanning);
-    document.getElementById('scanner-txt').textContent = isScanning ? 'SCANNER ATTIVO — pronto alla lettura' : 'SCANNER NON ATTIVO';
-    const btn = document.getElementById('btn-toggle-scanner');
-    btn.textContent = isScanning ? 'SCANNER ATTIVO ✓' : 'ATTIVA SCANNER NFC';
-    btn.disabled = isScanning;
+    document.getElementById('scanner-txt').textContent = isScanning ? 'SCANNER ATTIVO — pronto alla lettura' : 'SCANNER NON ATTIVO (tocca lo schermo)';
     document.getElementById('nfc-icon').classList.toggle('active', isScanning);
   }
   function pingNfcIcon(){
@@ -712,6 +714,8 @@
     document.getElementById('cfg-match').value = state.config.matchMin;
     document.getElementById('cfg-cooldown').value = state.config.cooldownSec;
     document.getElementById('cfg-sabotage').value = state.config.sabotageSec;
+    document.getElementById('cfg-revive').value = state.config.revivePenalty;
+    document.getElementById('cfg-hack').value = state.config.hackPenalty;
   }
   function renderAll(){ renderTimer(); renderStatus(); renderScannerUI(); renderLog(); renderTagsList(); renderSetupList(); renderConfigInputs(); }
 
@@ -769,15 +773,25 @@
   document.getElementById('btn-timer-start').addEventListener('click', startTimer);
   document.getElementById('btn-timer-pause').addEventListener('click', ()=>{}); // bloccato mentre attivo, no-op
   document.getElementById('btn-timer-reset').addEventListener('click', resetTimer);
-  document.getElementById('btn-toggle-scanner').addEventListener('click', startScanning);
   document.getElementById('btn-admin-pause').addEventListener('click', adminPauseTimer);
   document.getElementById('btn-admin-resume').addEventListener('click', adminResumeTimer);
+
+  // Avvio automatico dello scanner: i browser richiedono comunque un gesto dell'utente
+  // per motivi di sicurezza, quindi tentiamo subito (silenzioso) e riproviamo al primo tocco.
+  startScanning(true);
+  function tryStartOnFirstGesture(){
+    if(!isScanning) startScanning(false);
+    window.removeEventListener('click', tryStartOnFirstGesture);
+    window.removeEventListener('touchend', tryStartOnFirstGesture);
+  }
+  window.addEventListener('click', tryStartOnFirstGesture, { once:true });
+  window.addEventListener('touchend', tryStartOnFirstGesture, { once:true });
 
   // ---------------- wiring setup ----------------
   document.querySelectorAll('[data-step]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const input = document.getElementById(btn.dataset.step);
-      const min = parseInt(input.min||'1',10);
+      const min = input.min !== '' ? parseInt(input.min,10) : -Infinity;
       const next = Math.max(min, (parseInt(input.value,10)||0) + parseInt(btn.dataset.delta,10));
       input.value = next;
     });
@@ -787,9 +801,13 @@
     const m = parseInt(document.getElementById('cfg-match').value,10);
     const c = parseInt(document.getElementById('cfg-cooldown').value,10);
     const s = parseInt(document.getElementById('cfg-sabotage').value,10);
+    const rp = parseInt(document.getElementById('cfg-revive').value,10);
+    const hp = parseInt(document.getElementById('cfg-hack').value,10);
     if(m>0) state.config.matchMin=m;
     if(c>0) state.config.cooldownSec=c;
     if(s>0) state.config.sabotageSec=s;
+    if(!isNaN(rp)) state.config.revivePenalty=rp;
+    if(!isNaN(hp)) state.config.hackPenalty=hp;
     state.timer.remainingMs = state.config.matchMin*60000;
     saveState(); toast('Configurazione salvata','success'); logEvent('Configurazione aggiornata','info'); renderAll();
   });
