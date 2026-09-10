@@ -104,6 +104,13 @@
   .qg-sub{ color:var(--danger); font-size:0.6rem; text-align:center; margin-bottom:14px; }
 
   .timer-wrap{ text-align:center; padding:10px 0 4px; }
+  .ring-wrap{ position:relative; width:220px; height:220px; margin:0 auto; }
+  .ring-svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .ring-track{ fill:none; stroke:rgba(57,255,20,0.12); stroke-width:5; }
+  .ring-progress{ fill:none; stroke:var(--cyan); stroke-width:5; stroke-linecap:round;
+    filter:drop-shadow(0 0 6px var(--cyan-glow)); transition:stroke-dashoffset 1s linear, stroke 0.3s; }
+  .ring-tick-c{ fill:none; stroke:rgba(0,234,255,0.18); stroke-width:1; stroke-dasharray:1 7.4; }
+  .ring-wrap .timer-display{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   .timer-display{ font-size:3.4rem; font-weight:700; letter-spacing:4px; line-height:1;
     text-shadow:0 0 6px var(--neon-glow), 0 0 22px rgba(57,255,20,0.25); }
   .timer-display.danger{ color:var(--danger); text-shadow:0 0 6px var(--danger-glow), 0 0 22px rgba(255,45,85,0.3); animation:pulse 1s infinite; }
@@ -190,14 +197,19 @@
     <div class="qg-sub" id="qg-sub" style="display:none;"></div>
 
     <div class="panel timer-wrap">
-      <div class="timer-display" id="timer-display">90:00</div>
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 200 200">
+          <circle class="ring-track" cx="100" cy="100" r="90"/>
+          <circle class="ring-progress" id="ring-progress" cx="100" cy="100" r="90"/>
+          <circle class="ring-tick-c" cx="100" cy="100" r="78"/>
+        </svg>
+        <div class="timer-display" id="timer-display">90:00</div>
+      </div>
       <div class="timer-label">TEMPO PARTITA RESIDUO</div>
       <div class="row" style="margin-top:14px;">
         <button class="btn primary" id="btn-timer-start">▶ AVVIA</button>
-        <button class="btn amber" id="btn-timer-pause">⏸ PAUSA</button>
-        <button class="btn danger" id="btn-timer-reset">↺ RESET</button>
       </div>
-      <div class="lock-note" id="lock-note" style="display:none;">🔒 Pausa e Reset bloccati fino a fine partita</div>
+      <div class="lock-note" id="lock-note" style="display:none;">ℹ️ Per fermare o azzerare la partita: menu SETUP (admin)</div>
     </div>
 
     <div class="stats-row">
@@ -348,7 +360,7 @@
 
   // ==================================================================
   // Cambia qui la password del menu admin
-  const ADMIN_PASSWORD = 'phoenix2026';
+  const ADMIN_PASSWORD = 'Comando2026';
   // ==================================================================
 
   const STORAGE_KEY = 'SOFTAIR_PHOENIX_STATE_V1';
@@ -617,14 +629,20 @@
     document.getElementById('header-sub').textContent = state.timer.running ? 'PARTITA IN CORSO' : (state.timer.remainingMs<=0 ? 'PARTITA TERMINATA' : 'STANDBY');
     const running = state.timer.running;
     document.getElementById('btn-timer-start').disabled = running || state.timer.remainingMs<=0;
-    document.getElementById('btn-timer-pause').disabled = running;
-    document.getElementById('btn-timer-reset').disabled = running;
     document.getElementById('lock-note').style.display = running ? 'block' : 'none';
     document.getElementById('cfg-lock-note').style.display = running ? 'block' : 'none';
     document.getElementById('danger-lock-note').style.display = running ? 'block' : 'none';
     ['btn-save-config','btn-reset-match','btn-reset-tags'].forEach(id=>{ document.getElementById(id).disabled = running; });
     document.getElementById('btn-admin-pause').disabled = !running;
     document.getElementById('btn-admin-resume').disabled = running || state.timer.remainingMs<=0;
+
+    const totalMs = state.config.matchMin*60000;
+    const frac = totalMs>0 ? Math.max(0, Math.min(1, state.timer.remainingMs/totalMs)) : 0;
+    const circumference = 2*Math.PI*90;
+    const ring = document.getElementById('ring-progress');
+    ring.style.strokeDasharray = circumference;
+    ring.style.strokeDashoffset = circumference * (1-frac);
+    ring.style.stroke = (state.timer.remainingMs<=5*60000 && state.timer.remainingMs>0) ? 'var(--danger)' : 'var(--cyan)';
   }
   function renderStatus(){
     document.getElementById('score-num').textContent = state.score;
@@ -771,8 +789,6 @@
 
   // ---------------- wiring home ----------------
   document.getElementById('btn-timer-start').addEventListener('click', startTimer);
-  document.getElementById('btn-timer-pause').addEventListener('click', ()=>{}); // bloccato mentre attivo, no-op
-  document.getElementById('btn-timer-reset').addEventListener('click', resetTimer);
   document.getElementById('btn-admin-pause').addEventListener('click', adminPauseTimer);
   document.getElementById('btn-admin-resume').addEventListener('click', adminResumeTimer);
 
