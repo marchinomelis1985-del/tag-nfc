@@ -560,6 +560,7 @@
     state.timer.running = true;
     timerExpiredFired = false;
     saveState(); logEvent('Timer partita avviato','success'); renderAll();
+    startScanning(false); // il tocco su AVVIA è un gesto utente valido: garantisce l'NFC attivo per tutta la partita
   }
   function resetTimer(){
     if(state.timer.running) return; // bloccato durante la partita
@@ -883,6 +884,19 @@
     saveState(); toast('Tag ripristinati ai 5 di default','info'); renderAll();
   });
 
+  // Mantiene lo schermo sempre acceso finché l'app è aperta (fondamentale per NFC sempre attivo)
+  let wakeLock = null;
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    }catch(e){ /* non bloccante: se il dispositivo non supporta l'API, l'app funziona comunque */ }
+  }
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && wakeLock===null) requestWakeLock();
+  });
+
   // ---------------- init ----------------
   if(!('NDEFReader' in window)){
     document.getElementById('nfc-warning').style.display='block';
@@ -891,6 +905,7 @@
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
   }
+  requestWakeLock();
 
   renderAll();
   setInterval(tick, 1000);
