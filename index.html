@@ -247,6 +247,7 @@
         </div>
         <span class="txt" id="scanner-txt">SCANNER NON ATTIVO</span>
       </div>
+      <div style="font-size:0.62rem; color:var(--text-dim); margin-top:8px;">Lettore esterno: <span id="ble-status-hud">non connesso</span></div>
       <div class="nfc-warning" id="nfc-warning" style="display:none;"></div>
     </div>
 
@@ -268,6 +269,18 @@
       </div>
       <div style="font-size:0.6rem; color:var(--text-dim); margin-top:10px; line-height:1.5;">
         Questi pulsanti funzionano anche a partita in corso — visibili solo qui, dopo la password. I giocatori sulla schermata HUD non possono fermare o resettare il timer.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>🔗 LETTORE NFC ESTERNO (BLUETOOTH)</h2>
+      <div class="scanner-status">
+        <span class="indicator" id="ble-indicator"></span>
+        <span class="txt" id="ble-txt">NON CONNESSO</span>
+      </div>
+      <button class="btn primary" id="btn-ble-connect" style="width:100%; margin-top:10px;">🔗 COLLEGA LETTORE ESTERNO</button>
+      <div style="font-size:0.6rem; color:var(--text-dim); margin-top:8px; line-height:1.5;">
+        Richiede il lettore ESP32 + MFRC522 con il firmware Softair HQ, acceso e vicino.
       </div>
     </div>
 
@@ -792,6 +805,7 @@
   document.getElementById('btn-timer-start').addEventListener('click', startTimer);
   document.getElementById('btn-admin-pause').addEventListener('click', adminPauseTimer);
   document.getElementById('btn-admin-resume').addEventListener('click', adminResumeTimer);
+  document.getElementById('btn-ble-connect').addEventListener('click', connectBleReader);
 
   // Avvio automatico dello scanner: i browser richiedono comunque un gesto dell'utente
   // per motivi di sicurezza, quindi tentiamo subito (silenzioso) e riproviamo al primo tocco.
@@ -896,6 +910,60 @@
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState==='visible' && wakeLock===null) requestWakeLock();
   });
+
+  // ---------------- lettore NFC esterno (ESP32 + MFRC522 via Bluetooth) ----------------
+  const BLE_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+  const BLE_CHAR_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+  let bleDevice = null;
+  let bleCharacteristic = null;
+  let bleConnected = false;
+
+  function updateBleStatusUI(){
+    const txt = bleConnected ? 'CONNESSO' : 'NON CONNESSO';
+    const el1 = document.getElementById('ble-txt');
+    if(el1) el1.textContent = txt;
+    const dot1 = document.getElementById('ble-indicator');
+    if(dot1) dot1.style.background = bleConnected ? 'var(--neon)' : 'var(--text-dim)';
+    const el2 = document.getElementById('ble-status-hud');
+    if(el2) el2.textContent = bleConnected ? 'connesso' : 'non connesso';
+  }
+
+  async function connectBleReader(){
+    if(!navigator.bluetooth){
+      toast('Bluetooth Web non supportato su questo browser.', 'error');
+      return;
+    }
+    try{
+      bleDevice = await navigator.bluetooth.requestDevice({
+        filters: [{ name: 'SoftairHQ-NFC' }],
+        optionalServices: [BLE_SERVICE_UUID]
+      });
+      const server = await bleDevice.gatt.connect();
+      const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+      bleCharacteristic = await service.getCharacteristic(BLE_CHAR_UUID);
+      await bleCharacteristic.startNotifications();
+      bleCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
+        const decoder = new TextDecoder('utf-8');
+        const uid = decoder.decode(event.target.value).trim();
+        if(!uid || uid.toLowerCase()==='pronto') return;
+        pingNfcIcon();
+        playBeep('scan');
+        handleScannedId(uid);
+      });
+      bleConnected = true;
+      updateBleStatusUI();
+      toast('Lettore esterno collegato', 'success');
+      logEvent('Lettore NFC esterno collegato via Bluetooth', 'success');
+      bleDevice.addEventListener('gattserverdisconnected', () => {
+        bleConnected = false;
+        updateBleStatusUI();
+        toast('Lettore esterno disconnesso', 'error');
+        logEvent('Lettore NFC esterno disconnesso', 'error');
+      });
+    }catch(err){
+      toast('Connessione Bluetooth fallita: '+err.message, 'error');
+    }
+  }
 
   // ---------------- init ----------------
   if(!('NDEFReader' in window)){
