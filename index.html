@@ -171,6 +171,30 @@
     header h1{ font-size:1.1rem; }
     .tag-grid{ grid-template-columns:1fr 1fr 1fr; }
   }
+
+  /* Tablet in orizzontale: layout a 3 colonne, tutto visibile senza scorrimento di pagina */
+  .hud-grid{ display:contents; }
+  .hud-col{ display:contents; }
+
+  @media (orientation:landscape) and (min-width:900px){
+    html, body{ height:100%; overflow:hidden; }
+    body{ display:flex; flex-direction:column; }
+    header{ position:static; flex:0 0 auto; }
+    .tabbar{ position:static; flex:0 0 auto; }
+    main{ flex:1; min-height:0; max-width:none; overflow:hidden; padding:10px 16px; margin:0; }
+
+    #screen-hud.active{ display:flex; flex-direction:column; height:100%; min-height:0; }
+    .qg-badge{ flex:0 0 auto; }
+    .hud-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; flex:1; min-height:0; }
+    .hud-col{ display:flex; flex-direction:column; gap:12px; min-height:0; overflow-y:auto; }
+    .hud-col .panel{ margin-bottom:0; }
+    .log-panel{ flex:1; min-height:0; display:flex; flex-direction:column; }
+    .log-panel .log-list{ flex:1; max-height:none; }
+    .ring-wrap{ width:170px; height:170px; }
+    .timer-display{ font-size:2.6rem; }
+
+    #screen-setup.active{ height:100%; overflow-y:auto; }
+  }
 </style>
 </head>
 <body>
@@ -196,64 +220,72 @@
     </div>
     <div class="qg-sub" id="qg-sub" style="display:none;"></div>
 
-    <div class="panel timer-wrap">
-      <div class="ring-wrap">
-        <svg class="ring-svg" viewBox="0 0 200 200">
-          <circle class="ring-track" cx="100" cy="100" r="90"/>
-          <circle class="ring-progress" id="ring-progress" cx="100" cy="100" r="90"/>
-          <circle class="ring-tick-c" cx="100" cy="100" r="78"/>
-        </svg>
-        <div class="timer-display" id="timer-display">90:00</div>
-      </div>
-      <div class="timer-label">TEMPO PARTITA RESIDUO</div>
-      <div class="row" style="margin-top:14px;">
-        <button class="btn primary" id="btn-timer-start">▶ AVVIA</button>
-      </div>
-      <div class="lock-note" id="lock-note" style="display:none;">ℹ️ Per fermare o azzerare la partita: menu SETUP (admin)</div>
-    </div>
-
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="num" id="score-num">0</div>
-        <div class="lbl">PUNTEGGIO</div>
-        <div class="sub" id="score-sub" style="display:none;"></div>
-      </div>
-      <div class="stat-card">
-        <div class="num" id="revived-num">0</div>
-        <div class="lbl">RIANIMATI</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h2>STATO TAG MEDKIT</h2>
-      <div class="tag-grid" id="medkit-grid"></div>
-    </div>
-
-    <div class="panel">
-      <h2>TAG INTEL NEMICO</h2>
-      <div class="tag-grid" id="intel-grid"></div>
-    </div>
-
-    <div class="panel">
-      <h2>SCANNER NFC</h2>
-      <div class="scanner-status" id="scanner-status">
-        <div class="nfc-icon" id="nfc-icon">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <circle class="dot" cx="30" cy="70" r="6" fill="var(--cyan)"/>
-            <path class="ring ring1" d="M 30 70 A 20 20 0 0 1 50 50" stroke="var(--cyan)" stroke-width="4" fill="none" stroke-linecap="round"/>
-            <path class="ring ring2" d="M 30 70 A 34 34 0 0 1 64 36" stroke="var(--cyan)" stroke-width="4" fill="none" stroke-linecap="round"/>
-            <path class="ring ring3" d="M 30 70 A 48 48 0 0 1 78 22" stroke="var(--cyan)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-          </svg>
+    <div class="hud-grid">
+      <div class="hud-col">
+        <div class="panel timer-wrap">
+          <div class="ring-wrap">
+            <svg class="ring-svg" viewBox="0 0 200 200">
+              <circle class="ring-track" cx="100" cy="100" r="90"/>
+              <circle class="ring-progress" id="ring-progress" cx="100" cy="100" r="90"/>
+              <circle class="ring-tick-c" cx="100" cy="100" r="78"/>
+            </svg>
+            <div class="timer-display" id="timer-display">90:00</div>
+          </div>
+          <div class="timer-label">TEMPO PARTITA RESIDUO</div>
+          <div class="row" style="margin-top:14px;">
+            <button class="btn primary" id="btn-timer-start">▶ AVVIA</button>
+          </div>
+          <div class="lock-note" id="lock-note" style="display:none;">ℹ️ Per fermare o azzerare la partita: menu SETUP (admin)</div>
         </div>
-        <span class="txt" id="scanner-txt">SCANNER NON ATTIVO</span>
-      </div>
-      <div style="font-size:0.62rem; color:var(--text-dim); margin-top:8px;">Lettore esterno: <span id="ble-status-hud">non connesso</span></div>
-      <div class="nfc-warning" id="nfc-warning" style="display:none;"></div>
-    </div>
 
-    <div class="panel">
-      <h2>LOG OPERATIVO</h2>
-      <div class="log-list" id="log-list"></div>
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="num" id="score-num">0</div>
+            <div class="lbl">PUNTEGGIO</div>
+            <div class="sub" id="score-sub" style="display:none;"></div>
+          </div>
+          <div class="stat-card">
+            <div class="num" id="revived-num">0</div>
+            <div class="lbl">RIANIMATI</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-col">
+        <div class="panel">
+          <h2>STATO TAG MEDKIT</h2>
+          <div class="tag-grid" id="medkit-grid"></div>
+        </div>
+
+        <div class="panel">
+          <h2>TAG INTEL NEMICO</h2>
+          <div class="tag-grid" id="intel-grid"></div>
+        </div>
+      </div>
+
+      <div class="hud-col">
+        <div class="panel">
+          <h2>SCANNER NFC</h2>
+          <div class="scanner-status" id="scanner-status">
+            <div class="nfc-icon" id="nfc-icon">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle class="dot" cx="30" cy="70" r="6" fill="var(--cyan)"/>
+                <path class="ring ring1" d="M 30 70 A 20 20 0 0 1 50 50" stroke="var(--cyan)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path class="ring ring2" d="M 30 70 A 34 34 0 0 1 64 36" stroke="var(--cyan)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path class="ring ring3" d="M 30 70 A 48 48 0 0 1 78 22" stroke="var(--cyan)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span class="txt" id="scanner-txt">SCANNER NON ATTIVO</span>
+          </div>
+          <div style="font-size:0.62rem; color:var(--text-dim); margin-top:8px;">Lettore esterno: <span id="ble-status-hud">non connesso</span></div>
+          <div class="nfc-warning" id="nfc-warning" style="display:none;"></div>
+        </div>
+
+        <div class="panel log-panel">
+          <h2>LOG OPERATIVO</h2>
+          <div class="log-list" id="log-list"></div>
+        </div>
+      </div>
     </div>
 
   </section>
